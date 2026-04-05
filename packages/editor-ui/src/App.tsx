@@ -3,18 +3,24 @@ import { Canvas } from './components/Canvas'
 import { SelectionOverlay } from './components/SelectionOverlay'
 import { StylePanel } from './components/StylePanel'
 import { LayersPanel } from './components/LayersPanel'
+import { Toolbar } from './components/Toolbar'
 import { useEditorStore } from './state/editor-store'
 import { getWsClient } from './lib/ws-client'
 import { useTemporalStore } from './hooks/use-temporal'
 
 export function App() {
-  const state = useEditorStore((s) => s.editorState)
   const selectedLoc = useEditorStore((s) => s.selectedLoc)
+  const editorState = useEditorStore((s) => s.editorState)
   const incrementFileVersion = useEditorStore((s) => s.incrementFileVersion)
+  const setPages = useEditorStore((s) => s.setPages)
 
   // Initialize WS connection and listen for server messages
   useEffect(() => {
     const ws = getWsClient()
+
+    // Request file tree on connect
+    ws.sendMessage({ type: 'file:get-tree' })
+
     const unsub = ws.onMessage((msg) => {
       switch (msg.type) {
         case 'write:success': {
@@ -31,16 +37,25 @@ export function App() {
           incrementFileVersion()
           break
         }
+        case 'file:tree': {
+          const payload = msg.payload as { files: string[] }
+          setPages(payload.files)
+          break
+        }
       }
     })
     return unsub
-  }, [incrementFileVersion])
+  }, [incrementFileVersion, setPages])
 
   // Undo/Redo keyboard shortcuts
   const { undo, redo } = useTemporalStore()
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept undo/redo when inline editing text in the iframe
+      const state = useEditorStore.getState()
+      if (state.editorState === 'EDITING_TEXT') return
+
       const isMod = e.metaKey || e.ctrlKey
 
       if (isMod && e.key === 'z' && !e.shiftKey) {
@@ -65,9 +80,7 @@ export function App() {
   return (
     <div className="editor-layout">
       {/* Top toolbar */}
-      <div className="toolbar">
-        <div className="toolbar-title">Edit</div>
-      </div>
+      <Toolbar />
 
       {/* Left panel: layers */}
       <LayersPanel />
@@ -84,8 +97,10 @@ export function App() {
       {/* Bottom status bar */}
       <div className="status-bar">
         <div className="status">
-          <div className={`status-dot ${state === 'LOADING' ? 'loading' : ''}`} />
-          <span>{state === 'LOADING' ? 'Loading...' : 'Ready'}</span>
+          <div className={`status-dot ${editorState === 'LOADING' || editorState === 'NAVIGATING' ? 'loading' : ''}`} />
+          <span>
+            {editorState === 'LOADING' || editorState === 'NAVIGATING' ? 'Loading...' : 'Ready'}
+          </span>
         </div>
         {selectedLoc && (
           <span className="selection-info">{selectedLoc}</span>

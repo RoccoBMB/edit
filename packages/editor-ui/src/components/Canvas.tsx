@@ -1,5 +1,12 @@
 import { useRef, useEffect, useCallback } from 'react'
 import { useEditorStore } from '../state/editor-store'
+import { getWsClient } from '../lib/ws-client'
+
+/** Single-line elements: Enter commits edits instead of inserting newline */
+const SINGLE_LINE_TAGS = new Set([
+  'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
+  'BUTTON', 'LABEL', 'A', 'SPAN',
+])
 
 export function Canvas() {
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -7,6 +14,8 @@ export function Canvas() {
   const selectElement = useEditorStore((s) => s.selectElement)
   const hoverElement = useEditorStore((s) => s.hoverElement)
   const setIframeElement = useEditorStore((s) => s.setIframeElement)
+  const startInlineEdit = useEditorStore((s) => s.startInlineEdit)
+  const activePage = useEditorStore((s) => s.activePage)
 
   const handleIframeLoad = useCallback(() => {
     const iframe = iframeRef.current
@@ -20,6 +29,13 @@ export function Canvas() {
 
     // Click handler: read data-edit-loc, select element
     doc.addEventListener('click', (e: MouseEvent) => {
+      const state = useEditorStore.getState()
+
+      // Don't select while editing text — clicks should move cursor
+      if (state.editorState === 'EDITING_TEXT') return
+      // Don't select while dragging
+      if (state.editorState === 'DRAGGING') return
+
       e.preventDefault()
       e.stopPropagation()
 
@@ -34,6 +50,30 @@ export function Canvas() {
         width: rect.width,
         height: rect.height,
       }, target)
+    })
+
+    // Double-click handler: enter inline text editing
+    doc.addEventListener('dblclick', (e: MouseEvent) => {
+      const state = useEditorStore.getState()
+      if (state.editorState === 'EDITING_TEXT') return
+
+      e.preventDefault()
+      e.stopPropagation()
+
+      const target = e.target as HTMLElement
+      const loc = findEditLoc(target)
+      if (!loc) return
+
+      // Start inline editing
+      startInlineEdit(target)
+      target.contentEditable = 'true'
+      target.focus()
+
+      // Select all text content for easy replacement
+      const sel = doc.getSelection()
+      if (sel) {
+        sel.selectAllChildren(target)
+      }
     })
 
     // Prevent navigation from links/forms
@@ -64,10 +104,67 @@ export function Canvas() {
       lastHoveredLoc = null
       hoverElement(null)
     })
-  }, [setEditorState, selectElement, hoverElement, setIframeElement])
 
-  // Get the project URL from the editor's URL params
-  const projectUrl = getProjectUrl()
+    // Keyboard handler for inline editing
+    doc.addEventListener('keydown', (e: KeyboardEvent) => {
+      const state = useEditorStore.getState()
+
+      if (state.editorState !== 'EDITING_TEXT') {
+        // Disable browser's native undo at document level when not editing
+        return
+      }
+
+      const el = state.editingElement
+      if (!el) return
+
+      // Intercept Ctrl+Z / Ctrl+Y while editing text to prevent browser undo
+      const isMod = e.metaKey || e.ctrlKey
+      if (isMod && (e.key === 'z' || e.key === 'y')) {
+        e.preventDefault()
+        return
+      }
+
+      // Escape cancels editing
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        // Restore original content
+        const original = state.originalContent
+        if (original !== null) {
+          el.innerHTML = original
+        }
+        el.contentEditable = 'false'
+        useEditorStore.getState().stopInlineEdit(false)
+        return
+      }
+
+      // Enter behavior depends on element type
+      if (e.key === 'Enter' && !e.shiftKey) {
+        if (SINGLE_LINE_TAGS.has(el.tagName)) {
+          e.preventDefault()
+          commitInlineEdit(el, state.selectedLoc)
+          return
+        }
+        // Multi-line elements: Enter inserts newline (default browser behavior)
+      }
+    })
+
+    // Blur handler for inline editing: save on blur
+    doc.addEventListener('focusout', (e: FocusEvent) => {
+      const state = useEditorStore.getState()
+      if (state.editorState !== 'EDITING_TEXT') return
+
+      const el = state.editingElement
+      if (!el) return
+
+      // Check if the blur target is our editing element
+      if (e.target === el) {
+        commitInlineEdit(el, state.selectedLoc)
+      }
+    })
+  }, [setEditorState, selectElement, hoverElement, setIframeElement, startInlineEdit])
+
+  // Build iframe URL based on active page
+  const projectUrl = `/__project__/${activePage}`
 
   useEffect(() => {
     const iframe = iframeRef.current
@@ -86,6 +183,24 @@ export function Canvas() {
   )
 }
 
+/** Commit inline edit: send content change to server, exit editing mode */
+function commitInlineEdit(el: HTMLElement, loc: string | null) {
+  const newHtml = el.innerHTML
+  el.contentEditable = 'false'
+
+  if (loc) {
+    const fingerprint = el.getAttribute('data-edit-fp') ?? ''
+    const ws = getWsClient()
+    ws.sendMessage({
+      type: 'edit:content',
+      payload: { loc, fingerprint, html: newHtml },
+    })
+  }
+
+  // Transition: EDITING_TEXT -> WRITING -> (server will respond with success)
+  useEditorStore.getState().stopInlineEdit(true)
+}
+
 /** Walk up from element to find the nearest data-edit-loc attribute */
 function findEditLoc(el: HTMLElement | null): string | null {
   let current = el
@@ -95,12 +210,4 @@ function findEditLoc(el: HTMLElement | null): string | null {
     current = current.parentElement
   }
   return null
-}
-
-/** Extract the project preview URL from the editor's URL params */
-function getProjectUrl(): string {
-  const params = new URLSearchParams(window.location.search)
-  const page = params.get('page') ?? 'index.html'
-  // The project files are served under /__project__/ by the CLI server
-  return `/__project__/${page}`
 }

@@ -12,6 +12,9 @@
   --text-secondary: #8888a0;
   --accent: #4a90d9;
   --accent-hover: #5aa0e9;
+  --success: #4ade80;
+  --warning: #facc15;
+  --editing-color: #22c55e;
 }
 
 html, body, #root {
@@ -48,7 +51,7 @@ html, body, #root {
   display: flex;
   align-items: center;
   padding: 0 12px;
-  gap: 12px;
+  gap: 8px;
   font-size: 12px;
   color: var(--text-secondary);
 }
@@ -58,6 +61,103 @@ html, body, #root {
   font-size: 13px;
   color: var(--text-primary);
   letter-spacing: 0.02em;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border-color);
+  margin: 0 4px;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+
+.toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.toolbar-btn:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.toolbar-page-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.toolbar-select {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  padding: 3px 22px 3px 6px;
+  outline: none;
+  cursor: pointer;
+  max-width: 200px;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%238888a0'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  transition: border-color 150ms ease-out;
+}
+
+.toolbar-select:focus {
+  border-color: var(--accent);
+}
+
+.toolbar-select option {
+  background: var(--panel-bg);
+  color: var(--text-primary);
+}
+
+.toolbar-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.toolbar-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  transition: background-color 200ms ease-out;
+}
+
+.toolbar-status-dot.loading {
+  background: var(--warning);
+}
+
+.toolbar-status-text {
+  color: var(--text-secondary);
 }
 
 /* ============================================
@@ -86,11 +186,11 @@ html, body, #root {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #4ade80;
+  background: var(--success);
 }
 
 .status-bar .status-dot.loading {
-  background: #facc15;
+  background: var(--warning);
 }
 
 .selection-info {
@@ -223,12 +323,68 @@ html, body, #root {
   border: 2px solid var(--accent);
   border-radius: 1px;
   z-index: 11;
+  transition: border-color 150ms ease-out;
+}
+
+/* Editing mode: dashed green border */
+.selection-overlay.editing {
+  border: 2px dashed var(--editing-color);
 }
 
 .hover-overlay {
   border: 1px solid rgba(74, 144, 217, 0.5);
   background: rgba(74, 144, 217, 0.08);
   border-radius: 1px;
+}
+
+/* ============================================
+   Drag handle
+   ============================================ */
+
+.drag-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  border-radius: 4px;
+  color: white;
+  cursor: grab;
+  z-index: 12;
+  pointer-events: auto;
+  transition: background-color 120ms ease-out, transform 120ms ease-out;
+  will-change: transform;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.drag-handle:hover {
+  background: var(--accent-hover);
+  transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(1.1);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* ============================================
+   Drop indicator
+   ============================================ */
+
+.drop-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  z-index: 13;
+  pointer-events: none;
+  will-change: transform;
+  box-shadow: 0 0 6px rgba(74, 144, 217, 0.5);
 }
 
 /* ============================================

@@ -43,7 +43,17 @@ interface EditorStore {
 
   // Pages
   activePage: string
+  pages: string[]
+  pageSessionId: number
   fileVersion: number
+
+  // Inline editing
+  editingElement: HTMLElement | null
+  originalContent: string | null
+
+  // Drag-and-drop
+  dragElement: HTMLElement | null
+  dragGhost: SerializedRect | null
 
   // Actions
   setEditorState: (state: EditorState) => void
@@ -51,10 +61,16 @@ interface EditorStore {
   hoverElement: (loc: string | null) => void
   clearSelection: () => void
   setActivePage: (page: string) => void
+  setPages: (pages: string[]) => void
+  navigateToPage: (page: string) => void
   incrementFileVersion: () => void
   updateComputedStyles: (styles: Map<string, string>) => void
   setIframeElement: (iframe: HTMLIFrameElement | null) => void
   applyStyleOverride: (loc: string, property: string, value: string) => void
+  startInlineEdit: (element: HTMLElement) => void
+  stopInlineEdit: (save: boolean) => void
+  startDrag: (element: HTMLElement) => void
+  stopDrag: () => void
 }
 
 /** Read key computed style properties from an element */
@@ -104,7 +120,13 @@ export const useEditorStore = create<EditorStore>()(
       styleOverrides: new Map<string, Map<string, string>>(),
       iframeElement: null,
       activePage: 'index.html',
+      pages: [] as string[],
+      pageSessionId: 0,
       fileVersion: 0,
+      editingElement: null,
+      originalContent: null,
+      dragElement: null,
+      dragGhost: null,
 
       setEditorState: (state: EditorState) =>
         set((draft) => {
@@ -142,6 +164,28 @@ export const useEditorStore = create<EditorStore>()(
           draft.selectedRect = null
           draft.selectedElement = null
           draft.computedStyles = null
+          draft.editingElement = null
+          draft.originalContent = null
+        }),
+
+      setPages: (pages: string[]) =>
+        set((draft) => {
+          draft.pages = pages as never
+        }),
+
+      navigateToPage: (page: string) =>
+        set((draft) => {
+          draft.activePage = page
+          draft.editorState = 'NAVIGATING' as EditorState
+          draft.selectedLoc = null
+          draft.selectedRect = null
+          draft.selectedElement = null
+          draft.computedStyles = null
+          draft.editingElement = null
+          draft.originalContent = null
+          draft.hoveredLoc = null
+          draft.hoveredRect = null
+          draft.pageSessionId++
         }),
 
       incrementFileVersion: () =>
@@ -174,6 +218,37 @@ export const useEditorStore = create<EditorStore>()(
           if (cs) {
             cs.set(property, value)
           }
+        }),
+
+      startInlineEdit: (element: HTMLElement) =>
+        set((draft) => {
+          draft.editorState = 'EDITING_TEXT' as EditorState
+          draft.editingElement = element as never
+          draft.originalContent = element.innerHTML
+        }),
+
+      stopInlineEdit: (_save: boolean) =>
+        set((draft) => {
+          const el = draft.editingElement as HTMLElement | null
+          if (el) {
+            el.contentEditable = 'false'
+          }
+          draft.editingElement = null
+          draft.originalContent = null
+          draft.editorState = 'IDLE' as EditorState
+        }),
+
+      startDrag: (element: HTMLElement) =>
+        set((draft) => {
+          draft.editorState = 'DRAGGING' as EditorState
+          draft.dragElement = element as never
+        }),
+
+      stopDrag: () =>
+        set((draft) => {
+          draft.editorState = 'IDLE' as EditorState
+          draft.dragElement = null
+          draft.dragGhost = null
         }),
     })),
     {

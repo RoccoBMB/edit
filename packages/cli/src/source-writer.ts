@@ -70,7 +70,7 @@ export function applyStyleChange(
 }
 
 /**
- * Replace the text content of an element (prep for Phase 4).
+ * Replace the text content of an element.
  */
 export function applyContentChange(
   source: string,
@@ -103,6 +103,117 @@ export function applyContentChange(
   const contentEnd = endTag.startOffset
 
   return source.slice(0, contentStart) + newContent + source.slice(contentEnd)
+}
+
+/**
+ * Move an element to a new position among its siblings.
+ * The source and target must share the same parent (sibling reorder only).
+ *
+ * @param source - The full HTML source string
+ * @param sourceFingerprint - Fingerprint of the element to move
+ * @param sourceLine - Line number hint for fallback lookup
+ * @param sourceCol - Column number hint for fallback lookup
+ * @param targetFingerprint - Fingerprint of the reference sibling
+ * @param targetLine - Line number hint for fallback lookup
+ * @param targetCol - Column number hint for fallback lookup
+ * @param position - Insert 'before' or 'after' the target element
+ */
+export function applyElementMove(
+  source: string,
+  sourceFingerprint: string,
+  sourceLine: number,
+  sourceCol: number,
+  targetFingerprint: string,
+  targetLine: number,
+  targetCol: number,
+  position: 'before' | 'after',
+): string {
+  const document = parse(source, { sourceCodeLocationInfo: true })
+
+  const sourceElement = findElement(document.childNodes, sourceFingerprint, sourceLine, sourceCol)
+  if (!sourceElement) {
+    throw new Error(`Source element not found: fp=${sourceFingerprint} line=${sourceLine} col=${sourceCol}`)
+  }
+
+  const targetElement = findElement(document.childNodes, targetFingerprint, targetLine, targetCol)
+  if (!targetElement) {
+    throw new Error(`Target element not found: fp=${targetFingerprint} line=${targetLine} col=${targetCol}`)
+  }
+
+  const sourceLoc = sourceElement.sourceCodeLocation
+  const targetLoc = targetElement.sourceCodeLocation
+  if (!sourceLoc || !targetLoc) {
+    throw new Error('Elements missing sourceCodeLocation')
+  }
+
+  // Get the full byte range of the source element (start tag to end tag)
+  const sourceStart = sourceLoc.startOffset
+  const sourceEnd = sourceLoc.endOffset
+
+  // Get the position of the target element
+  const targetStart = targetLoc.startOffset
+  const targetEnd = targetLoc.endOffset
+
+  // Extract the source element's HTML
+  const movedHtml = source.slice(sourceStart, sourceEnd)
+
+  // We need to handle leading/trailing whitespace around the source element
+  // to keep formatting clean. Look for a preceding newline + indentation.
+  let removeStart = sourceStart
+  let removeEnd = sourceEnd
+
+  // Try to include the preceding whitespace (back to previous newline)
+  const beforeSource = source.slice(0, sourceStart)
+  const lastNewline = beforeSource.lastIndexOf('\n')
+  if (lastNewline >= 0) {
+    const between = source.slice(lastNewline, sourceStart)
+    // Only consume the whitespace if it's purely whitespace between newline and element
+    if (/^\n\s*$/.test(between)) {
+      removeStart = lastNewline
+    }
+  }
+
+  // Try to include a trailing newline
+  if (source[removeEnd] === '\n') {
+    removeEnd++
+  }
+
+  // Step 1: Remove the source element
+  const withoutSource = source.slice(0, removeStart) + source.slice(removeEnd)
+
+  // Step 2: Recalculate target position in the modified string
+  // If source was before target, the target offset shifts back by the removed length
+  const removedLength = removeEnd - removeStart
+  let insertOffset: number
+
+  if (position === 'before') {
+    insertOffset = targetStart < sourceStart ? targetStart : targetStart - removedLength
+  } else {
+    insertOffset = targetEnd < sourceStart ? targetEnd : targetEnd - removedLength
+  }
+
+  // Determine indentation from the target element for proper formatting
+  const beforeTarget = withoutSource.slice(0, insertOffset)
+  const lastNl = beforeTarget.lastIndexOf('\n')
+  let indent = ''
+  if (lastNl >= 0) {
+    const lineStart = beforeTarget.slice(lastNl + 1)
+    const match = lineStart.match(/^(\s*)/)
+    if (match?.[1]) {
+      indent = match[1]
+    }
+  }
+
+  // Build the insertion text
+  let insertHtml: string
+  if (position === 'before') {
+    insertHtml = movedHtml + '\n' + indent
+  } else {
+    insertHtml = '\n' + indent + movedHtml
+  }
+
+  // Step 3: Insert the moved element at the target position
+  return withoutSource.slice(0, insertOffset) + insertHtml + withoutSource.slice(insertOffset)
 }
 
 /**

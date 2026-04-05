@@ -4,7 +4,7 @@ import type { Server } from 'node:http'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { resolveInProject } from './file-jail.js'
-import { applyStyleChange, applyContentChange } from './source-writer.js'
+import { applyStyleChange, applyContentChange, applyElementMove } from './source-writer.js'
 import type { WriteQueue } from './write-queue.js'
 import { parseEditLoc } from './types.js'
 
@@ -189,6 +189,73 @@ async function handleMessage(
         ws.send(JSON.stringify({
           type: 'write:error',
           payload: { loc: payload.loc, message },
+        }))
+      }
+      break
+    }
+
+    case 'edit:move': {
+      const payload = msg.payload as {
+        sourceLoc: string
+        sourceFingerprint: string
+        targetLoc: string
+        targetFingerprint: string
+        position: 'before' | 'after'
+      }
+
+      const sourceParsed = parseEditLoc(payload.sourceLoc)
+      const targetParsed = parseEditLoc(payload.targetLoc)
+
+      if (!sourceParsed) {
+        ws.send(JSON.stringify({
+          type: 'write:error',
+          payload: { loc: payload.sourceLoc, message: 'Invalid source loc format' },
+        }))
+        break
+      }
+      if (!targetParsed) {
+        ws.send(JSON.stringify({
+          type: 'write:error',
+          payload: { loc: payload.targetLoc, message: 'Invalid target loc format' },
+        }))
+        break
+      }
+
+      // Both elements must be in the same file for sibling reorder
+      if (sourceParsed.file !== targetParsed.file) {
+        ws.send(JSON.stringify({
+          type: 'write:error',
+          payload: { loc: payload.sourceLoc, message: 'Cross-file moves not supported' },
+        }))
+        break
+      }
+
+      const filePath = resolveInProject(sourceParsed.file, projectRoot)
+
+      try {
+        await writeQueue.enqueue(filePath, (source) =>
+          applyElementMove(
+            source,
+            payload.sourceFingerprint,
+            sourceParsed.line,
+            sourceParsed.col,
+            payload.targetFingerprint,
+            targetParsed.line,
+            targetParsed.col,
+            payload.position,
+          ),
+        )
+
+        const version = bumpFileVersion(sourceParsed.file)
+        ws.send(JSON.stringify({
+          type: 'write:success',
+          payload: { loc: payload.sourceLoc, version },
+        }))
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Move failed'
+        ws.send(JSON.stringify({
+          type: 'write:error',
+          payload: { loc: payload.sourceLoc, message },
         }))
       }
       break

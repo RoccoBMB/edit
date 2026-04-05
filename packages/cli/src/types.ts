@@ -33,7 +33,7 @@ export type EditOperation =
 export type EditorToServer =
   | { type: 'edit:style'; payload: { loc: string; fingerprint: string; property: string; value: string } }
   | { type: 'edit:content'; payload: { loc: string; fingerprint: string; html: string } }
-  | { type: 'edit:move'; payload: { sourceLoc: string; targetLoc: string; position: 'before' | 'after' | 'inside' } }
+  | { type: 'edit:move'; payload: { sourceLoc: string; sourceFingerprint: string; targetLoc: string; targetFingerprint: string; position: 'before' | 'after' } }
   | { type: 'file:get-tree' }
 
 export type ServerToEditor =
