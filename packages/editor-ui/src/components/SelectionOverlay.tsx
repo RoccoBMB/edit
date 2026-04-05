@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { useEditorStore, type SerializedRect } from '../state/editor-store'
 import { getWsClient } from '../lib/ws-client'
 
@@ -11,6 +11,10 @@ import { getWsClient } from '../lib/ws-client'
  * - Dashed green border when in EDITING_TEXT mode
  * - Drag handle on selected element
  * - Drop indicator lines between siblings during drag
+ *
+ * Phase 5 additions:
+ * - Element label badge (tag + first class or id)
+ * - Hover label badge
  */
 
 /** Find the data-edit-loc for an element */
@@ -21,6 +25,19 @@ function getElementLoc(el: Element): string | null {
 /** Find the data-edit-fp for an element */
 function getElementFp(el: Element): string {
   return el.getAttribute('data-edit-fp') ?? ''
+}
+
+/** Build a label like "div.hero-title" or "h1#main" */
+function getElementLabel(el: Element): string {
+  const tag = el.tagName.toLowerCase()
+  const id = el.getAttribute('id')
+  if (id) return `${tag}#${id}`
+  const cls = el.className
+  if (typeof cls === 'string' && cls.trim()) {
+    const firstClass = cls.trim().split(/\s+/)[0]
+    if (firstClass) return `${tag}.${firstClass}`
+  }
+  return tag
 }
 
 export function SelectionOverlay() {
@@ -34,7 +51,9 @@ export function SelectionOverlay() {
   const stopDrag = useEditorStore((s) => s.stopDrag)
 
   const selectionRef = useRef<HTMLDivElement>(null)
+  const selectionLabelRef = useRef<HTMLDivElement>(null)
   const hoverRef = useRef<HTMLDivElement>(null)
+  const hoverLabelRef = useRef<HTMLDivElement>(null)
   const dragHandleRef = useRef<HTMLDivElement>(null)
   const rafId = useRef<number>(0)
 
@@ -223,12 +242,19 @@ export function SelectionOverlay() {
     [selectedElement, iframeElement, selectedLoc, startDrag, stopDrag],
   )
 
+  /** Compute the label for the selected element */
+  const selectionLabel = useMemo(() => {
+    if (!selectedElement || !selectedElement.isConnected) return ''
+    return getElementLabel(selectedElement)
+  }, [selectedElement])
+
   useEffect(() => {
     const tick = () => {
       const isEditing = useEditorStore.getState().editorState === 'EDITING_TEXT'
 
       // --- Selection highlight ---
       const selDiv = selectionRef.current
+      const selLabel = selectionLabelRef.current
       if (selDiv) {
         if (selectedElement && selectedElement.isConnected) {
           const rect = (selectedElement as HTMLElement).getBoundingClientRect()
@@ -241,11 +267,18 @@ export function SelectionOverlay() {
             } else {
               selDiv.classList.remove('editing')
             }
+            // Position selection label
+            if (selLabel) {
+              selLabel.style.transform = `translate(${translated.x - 1}px, ${translated.y - 22}px)`
+              selLabel.style.display = 'block'
+            }
           } else {
             selDiv.style.display = 'none'
+            if (selLabel) selLabel.style.display = 'none'
           }
         } else {
           selDiv.style.display = 'none'
+          if (selLabel) selLabel.style.display = 'none'
           // Element disconnected from DOM — clear selection
           if (selectedElement && !selectedElement.isConnected) {
             clearSelection()
@@ -273,6 +306,7 @@ export function SelectionOverlay() {
 
       // --- Hover highlight ---
       const hovDiv = hoverRef.current
+      const hovLabel = hoverLabelRef.current
       if (hovDiv) {
         if (hoveredLoc && hoveredLoc !== selectedLoc) {
           const hoveredEl = findElementByLoc(hoveredLoc)
@@ -281,14 +315,23 @@ export function SelectionOverlay() {
             const translated = translateRect(rect)
             if (translated) {
               applyRect(hovDiv, translated)
+              // Position and populate hover label
+              if (hovLabel) {
+                hovLabel.textContent = getElementLabel(hoveredEl)
+                hovLabel.style.transform = `translate(${translated.x - 1}px, ${translated.y - 20}px)`
+                hovLabel.style.display = 'block'
+              }
             } else {
               hovDiv.style.display = 'none'
+              if (hovLabel) hovLabel.style.display = 'none'
             }
           } else {
             hovDiv.style.display = 'none'
+            if (hovLabel) hovLabel.style.display = 'none'
           }
         } else {
           hovDiv.style.display = 'none'
+          if (hovLabel) hovLabel.style.display = 'none'
         }
       }
 
@@ -317,6 +360,17 @@ export function SelectionOverlay() {
         style={{ display: 'none' }}
       />
 
+      {/* Selection label badge */}
+      {selectedElement && selectionLabel && (
+        <div
+          ref={selectionLabelRef}
+          className="selection-label"
+          style={{ display: 'none', position: 'absolute', top: 0, left: 0, willChange: 'transform' }}
+        >
+          {selectionLabel}
+        </div>
+      )}
+
       {/* Drag handle — grip icon top-left of selected element */}
       <div
         ref={dragHandleRef}
@@ -340,6 +394,13 @@ export function SelectionOverlay() {
         ref={hoverRef}
         className="hover-overlay"
         style={{ display: 'none' }}
+      />
+
+      {/* Hover label badge */}
+      <div
+        ref={hoverLabelRef}
+        className="hover-label"
+        style={{ display: 'none', position: 'absolute', top: 0, left: 0, willChange: 'transform' }}
       />
 
       {/* Drop indicator line */}

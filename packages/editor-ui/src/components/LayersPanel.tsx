@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef, useCallback } from 'react'
+import { useMemo, useEffect, useRef, useCallback, useState } from 'react'
 import { Tree, type NodeRendererProps } from 'react-arborist'
 import { useEditorStore } from '../state/editor-store'
 import type { TreeApi } from 'react-arborist'
@@ -7,6 +7,9 @@ import type { TreeApi } from 'react-arborist'
 interface LayerNode {
   id: string
   name: string
+  tag: string
+  classNames: string
+  idAttr: string
   loc: string | null
   children: LayerNode[]
 }
@@ -22,29 +25,27 @@ const EXCLUDED_TAGS = new Set([
   'br',
 ])
 
-/** Build a display name for an element: `<tag>.class#id` truncated */
-function buildNodeName(el: Element): string {
+/** Build structured data for an element */
+function buildNodeData(el: Element): { tag: string; classNames: string; idAttr: string; displayName: string } {
   const tag = el.tagName.toLowerCase()
-  let name = `<${tag}>`
-  const id = el.getAttribute('id')
-  if (id) {
-    name += `#${id}`
-  }
+  const id = el.getAttribute('id') ?? ''
+  let classNames = ''
   const cls = el.className
   if (typeof cls === 'string' && cls.trim()) {
-    const classes = cls
+    classNames = cls
       .trim()
       .split(/\s+/)
       .slice(0, 2)
       .map((c) => `.${c}`)
       .join('')
-    name += classes
   }
-  // Truncate long names
-  if (name.length > 40) {
-    name = name.slice(0, 37) + '...'
+  let displayName = `<${tag}>`
+  if (id) displayName += `#${id}`
+  displayName += classNames
+  if (displayName.length > 40) {
+    displayName = displayName.slice(0, 37) + '...'
   }
-  return name
+  return { tag, classNames, idAttr: id, displayName }
 }
 
 /** Recursively build tree data from a DOM element */
@@ -54,6 +55,8 @@ function buildTree(el: Element, idPrefix: string): LayerNode | null {
 
   const loc = el.getAttribute('data-edit-loc')
   const id = `${idPrefix}/${tag}[${Array.from(el.parentElement?.children ?? []).indexOf(el)}]`
+
+  const data = buildNodeData(el)
 
   const children: LayerNode[] = []
   for (let i = 0; i < el.children.length; i++) {
@@ -66,13 +69,27 @@ function buildTree(el: Element, idPrefix: string): LayerNode | null {
 
   return {
     id,
-    name: buildNodeName(el),
+    name: data.displayName,
+    tag: data.tag,
+    classNames: data.classNames,
+    idAttr: data.idAttr,
     loc,
     children,
   }
 }
 
-/** Custom tree node renderer */
+/** SVG chevron that rotates on expand/collapse */
+function TreeChevron({ isOpen }: { isOpen: boolean }) {
+  return (
+    <span className={`layer-node-toggle ${isOpen ? 'layer-node-toggle--open' : ''}`}>
+      <svg viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+        <polyline points="2,1 6,4 2,7" />
+      </svg>
+    </span>
+  )
+}
+
+/** Custom tree node renderer with syntax-colored names */
 function LayerNodeRenderer({
   node,
   style,
@@ -93,17 +110,24 @@ function LayerNodeRenderer({
     >
       {node.isInternal && (
         <span
-          className="layer-node-toggle"
           onClick={(e) => {
             e.stopPropagation()
             node.toggle()
           }}
         >
-          {node.isOpen ? '\u25BE' : '\u25B8'}
+          <TreeChevron isOpen={node.isOpen} />
         </span>
       )}
       {node.isLeaf && <span className="layer-node-leaf-spacer" />}
-      <span className="layer-node-name">{node.data.name}</span>
+      <span className="layer-node-name">
+        <span className="layer-node-tag">&lt;{node.data.tag}&gt;</span>
+        {node.data.idAttr && (
+          <span className="layer-node-id">#{node.data.idAttr}</span>
+        )}
+        {node.data.classNames && (
+          <span className="layer-node-class">{node.data.classNames}</span>
+        )}
+      </span>
     </div>
   )
 }
@@ -114,6 +138,23 @@ export function LayersPanel() {
   const selectElement = useEditorStore((s) => s.selectElement)
   const selectionGeneration = useEditorStore((s) => s.selectionGeneration)
   const treeRef = useRef<TreeApi<LayerNode> | undefined>(undefined)
+
+  // ResizeObserver for dynamic height
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerHeight, setContainerHeight] = useState(600)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerHeight(entry.contentRect.height)
+      }
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   /** Build tree data from the iframe DOM */
   const treeData = useMemo<LayerNode[]>(() => {
@@ -205,7 +246,7 @@ export function LayersPanel() {
   return (
     <div className="layers-panel">
       <h2>Layers</h2>
-      <div className="layers-tree-container">
+      <div className="layers-tree-container" ref={containerRef}>
         <Tree<LayerNode>
           ref={treeRef}
           data={treeData}
@@ -218,7 +259,7 @@ export function LayersPanel() {
           rowHeight={26}
           indent={14}
           width={240}
-          height={800}
+          height={containerHeight}
           overscanCount={20}
         >
           {LayerNodeRenderer}

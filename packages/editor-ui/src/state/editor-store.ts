@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { temporal } from 'zundo'
+import type { CSSRuleInfo, ClassInfo, CSSVariableInfo } from '../lib/css-inspector'
+import { getAppliedRules, getElementClasses, getCSSVariables } from '../lib/css-inspector'
 
 export type EditorState =
   | 'LOADING'
@@ -42,6 +44,11 @@ interface EditorStore {
 
   // Computed styles for selected element
   computedStyles: Map<string, string> | null
+
+  // CSS inspection data for selected element
+  appliedRules: CSSRuleInfo[] | null
+  elementClasses: ClassInfo[] | null
+  cssVariables: CSSVariableInfo[] | null
 
   // Style overrides: loc -> (property -> value) — tracks all style edits
   styleOverrides: Map<string, Map<string, string>>
@@ -108,8 +115,9 @@ function readComputedStyles(element: Element): Map<string, string> {
     'text-align', 'line-height', 'letter-spacing',
     // Size
     'width', 'height',
-    // Display / Position
-    'display', 'position',
+    // Layout
+    'display', 'position', 'flex-direction', 'justify-content',
+    'align-items', 'gap', 'overflow',
     // Background
     'background-color',
     // Border
@@ -134,6 +142,9 @@ export const useEditorStore = create<EditorStore>()(
       hoveredLoc: null,
       hoveredRect: null,
       computedStyles: null,
+      appliedRules: null,
+      elementClasses: null,
+      cssVariables: null,
       styleOverrides: new Map<string, Map<string, string>>(),
       iframeElement: null,
       activePage: 'index.html',
@@ -160,6 +171,16 @@ export const useEditorStore = create<EditorStore>()(
           draft.selectionGeneration++
           draft.editorState = 'IDLE' as EditorState
           draft.computedStyles = readComputedStyles(element) as never
+          // Populate CSS inspector data
+          try {
+            draft.appliedRules = getAppliedRules(element) as never
+            draft.elementClasses = getElementClasses(element) as never
+            draft.cssVariables = getCSSVariables(element) as never
+          } catch {
+            draft.appliedRules = null
+            draft.elementClasses = null
+            draft.cssVariables = null
+          }
         }),
 
       hoverElement: (loc: string | null) =>
@@ -173,6 +194,9 @@ export const useEditorStore = create<EditorStore>()(
           draft.selectedRect = null
           draft.selectedElement = null
           draft.computedStyles = null
+          draft.appliedRules = null
+          draft.elementClasses = null
+          draft.cssVariables = null
         }),
 
       setActivePage: (page: string) =>
@@ -183,6 +207,9 @@ export const useEditorStore = create<EditorStore>()(
           draft.selectedRect = null
           draft.selectedElement = null
           draft.computedStyles = null
+          draft.appliedRules = null
+          draft.elementClasses = null
+          draft.cssVariables = null
           draft.editingElement = null
           draft.originalContent = null
         }),
@@ -200,6 +227,9 @@ export const useEditorStore = create<EditorStore>()(
           draft.selectedRect = null
           draft.selectedElement = null
           draft.computedStyles = null
+          draft.appliedRules = null
+          draft.elementClasses = null
+          draft.cssVariables = null
           draft.editingElement = null
           draft.originalContent = null
           draft.hoveredLoc = null

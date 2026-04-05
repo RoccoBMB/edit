@@ -17,6 +17,7 @@ export function App() {
   const selectedLoc = useEditorStore((s) => s.selectedLoc)
   const editorState = useEditorStore((s) => s.editorState)
   const saveState = useEditorStore((s) => s.saveState)
+  const clearSelection = useEditorStore((s) => s.clearSelection)
   const incrementFileVersion = useEditorStore((s) => s.incrementFileVersion)
   const setPages = useEditorStore((s) => s.setPages)
   const addToast = useEditorStore((s) => s.addToast)
@@ -143,11 +144,17 @@ export function App() {
         e.preventDefault()
         redo()
       }
+
+      // Escape to deselect current element
+      if (e.key === 'Escape' && state.editorState === 'IDLE' && state.selectedLoc) {
+        e.preventDefault()
+        clearSelection()
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [undo, redo])
+  }, [undo, redo, clearSelection])
 
   // Determine status bar display based on save state and editor state
   const isLoading = editorState === 'LOADING' || editorState === 'NAVIGATING'
