@@ -6,6 +6,7 @@ export function Canvas() {
   const setEditorState = useEditorStore((s) => s.setEditorState)
   const selectElement = useEditorStore((s) => s.selectElement)
   const hoverElement = useEditorStore((s) => s.hoverElement)
+  const setIframeElement = useEditorStore((s) => s.setIframeElement)
 
   const handleIframeLoad = useCallback(() => {
     const iframe = iframeRef.current
@@ -15,6 +16,7 @@ export function Canvas() {
     if (!doc) return
 
     setEditorState('IDLE')
+    setIframeElement(iframe)
 
     // Click handler: read data-edit-loc, select element
     doc.addEventListener('click', (e: MouseEvent) => {
@@ -62,7 +64,7 @@ export function Canvas() {
       lastHoveredLoc = null
       hoverElement(null)
     })
-  }, [setEditorState, selectElement, hoverElement])
+  }, [setEditorState, selectElement, hoverElement, setIframeElement])
 
   // Get the project URL from the editor's URL params
   const projectUrl = getProjectUrl()

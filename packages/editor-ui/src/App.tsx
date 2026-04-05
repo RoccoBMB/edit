@@ -1,4 +1,7 @@
 import { Canvas } from './components/Canvas'
+import { SelectionOverlay } from './components/SelectionOverlay'
+import { StylePanel } from './components/StylePanel'
+import { LayersPanel } from './components/LayersPanel'
 import { useEditorStore } from './state/editor-store'
 
 export function App() {
@@ -7,18 +10,25 @@ export function App() {
 
   return (
     <div className="editor-layout">
-      <div className="layers-panel">
-        <h2>Layers</h2>
-        <p style={{ fontSize: 12, color: 'var(--text-secondary)', padding: '4px' }}>
-          Click an element in the preview to select it.
-        </p>
+      {/* Top toolbar */}
+      <div className="toolbar">
+        <div className="toolbar-title">Edit</div>
       </div>
 
+      {/* Left panel: layers */}
+      <LayersPanel />
+
+      {/* Center: canvas with overlay */}
       <div className="canvas-area">
         <Canvas />
+        <SelectionOverlay />
       </div>
 
-      <div className="toolbar">
+      {/* Right panel: styles */}
+      <StylePanel />
+
+      {/* Bottom status bar */}
+      <div className="status-bar">
         <div className="status">
           <div className={`status-dot ${state === 'LOADING' ? 'loading' : ''}`} />
           <span>{state === 'LOADING' ? 'Loading...' : 'Ready'}</span>

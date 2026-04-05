@@ -10,11 +10,12 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "zustand": "^5.0.0",
     "immer": "^10.1.0",
-    "zundo": "^2.3.0"
+    "react": "^19.0.0",
+    "react-arborist": "^3.4.3",
+    "react-dom": "^19.0.0",
+    "zundo": "^2.3.0",
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
