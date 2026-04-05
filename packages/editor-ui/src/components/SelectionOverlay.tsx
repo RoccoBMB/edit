@@ -59,6 +59,7 @@ export function SelectionOverlay() {
 
   // Drag state
   const [isDragging, setIsDragging] = useState(false)
+  const isDraggingRef = useRef(false)
   const [dropIndicator, setDropIndicator] = useState<{ x: number; y: number; width: number } | null>(null)
   const dragDataRef = useRef<{
     sourceElement: HTMLElement
@@ -145,6 +146,7 @@ export function SelectionOverlay() {
       }
 
       setIsDragging(true)
+      isDraggingRef.current = true
       startDrag(el)
 
       // Set pointer-events:none on iframe during drag
@@ -232,6 +234,7 @@ export function SelectionOverlay() {
 
         dragDataRef.current = null
         setIsDragging(false)
+        isDraggingRef.current = false
         setDropIndicator(null)
         stopDrag()
       }
@@ -243,10 +246,12 @@ export function SelectionOverlay() {
   )
 
   /** Compute the label for the selected element */
+  const selectionGeneration = useEditorStore((s) => s.selectionGeneration)
   const selectionLabel = useMemo(() => {
     if (!selectedElement || !selectedElement.isConnected) return ''
     return getElementLabel(selectedElement)
-  }, [selectedElement])
+    // selectionGeneration ensures label updates when classes are toggled
+  }, [selectedElement, selectionGeneration])
 
   useEffect(() => {
     const tick = () => {
@@ -289,7 +294,7 @@ export function SelectionOverlay() {
       // --- Drag handle ---
       const handleDiv = dragHandleRef.current
       if (handleDiv) {
-        if (selectedElement && selectedElement.isConnected && !isEditing && !isDragging) {
+        if (selectedElement && selectedElement.isConnected && !isEditing && !isDraggingRef.current) {
           const rect = (selectedElement as HTMLElement).getBoundingClientRect()
           const translated = translateRect(rect)
           if (translated) {
@@ -348,7 +353,6 @@ export function SelectionOverlay() {
     applyRect,
     findElementByLoc,
     clearSelection,
-    isDragging,
   ])
 
   return (

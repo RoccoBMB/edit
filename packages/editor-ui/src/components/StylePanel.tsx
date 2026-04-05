@@ -110,7 +110,11 @@ function isHexColor(value: string): boolean {
 }
 
 function rgbToHex(value: string): string | null {
-  const match = value.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/)
+  // Handles both comma-separated rgb(r, g, b) and modern space-separated rgb(r g b)
+  // Also handles rgba() with optional alpha
+  const match = value.match(
+    /^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)(?:[\s,/]+[\d.]+%?)?\s*\)$/
+  )
   if (!match) return null
   const [, rStr, gStr, bStr] = match
   if (rStr === undefined || gStr === undefined || bStr === undefined)

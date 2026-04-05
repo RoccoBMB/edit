@@ -137,6 +137,7 @@ export function LayersPanel() {
   const selectedLoc = useEditorStore((s) => s.selectedLoc)
   const selectElement = useEditorStore((s) => s.selectElement)
   const selectionGeneration = useEditorStore((s) => s.selectionGeneration)
+  const fileVersion = useEditorStore((s) => s.fileVersion)
   const treeRef = useRef<TreeApi<LayerNode> | undefined>(undefined)
 
   // ResizeObserver for dynamic height
@@ -171,9 +172,7 @@ export function LayersPanel() {
       }
     }
     return children
-    // Re-build when iframe changes or file version changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [iframeElement, useEditorStore.getState().fileVersion])
+  }, [iframeElement, fileVersion])
 
   /** Map of loc -> node id for reverse lookup */
   const locToNodeId = useMemo(() => {

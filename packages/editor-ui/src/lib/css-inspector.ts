@@ -389,10 +389,12 @@ function isColorValue(value: string): boolean {
   if (!value) return false
   if (/^#[0-9a-fA-F]{3,8}$/.test(value)) return true
   if (/^(rgb|rgba|hsl|hsla|oklch|oklab|lch|lab|color)\(/.test(value)) return true
+  // Only include actual named colors, not CSS keywords like inherit/currentColor/transparent
+  // which would render misleading color swatches
   const named = new Set([
     'red', 'blue', 'green', 'white', 'black', 'yellow', 'orange', 'purple',
-    'pink', 'cyan', 'magenta', 'gray', 'grey', 'transparent', 'inherit',
-    'currentcolor', 'currentColor',
+    'pink', 'cyan', 'magenta', 'gray', 'grey', 'navy', 'teal', 'coral',
+    'salmon', 'crimson', 'tomato', 'gold', 'silver', 'indigo', 'violet',
   ])
   if (named.has(value.toLowerCase())) return true
   return false
