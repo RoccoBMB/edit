@@ -13,10 +13,13 @@ declare global {
 }
 
 export type MessageHandler = (msg: { type: string; payload?: unknown }) => void
+export type ConnectionHandler = () => void
 
 interface WsClient {
   sendMessage(msg: object): void
   onMessage(handler: MessageHandler): () => void
+  onConnect(handler: ConnectionHandler): () => void
+  onDisconnect(handler: ConnectionHandler): () => void
   isConnected(): boolean
   disconnect(): void
 }
@@ -31,8 +34,11 @@ export function getWsClient(): WsClient {
 
 function createWsClient(): WsClient {
   const handlers = new Set<MessageHandler>()
+  const connectHandlers = new Set<ConnectionHandler>()
+  const disconnectHandlers = new Set<ConnectionHandler>()
   let ws: WebSocket | null = null
   let connected = false
+  let wasConnected = false
   let reconnectDelay = 1000
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
   let disposed = false
@@ -55,6 +61,10 @@ function createWsClient(): WsClient {
     ws.onopen = () => {
       connected = true
       reconnectDelay = 1000 // Reset backoff on successful connection
+      for (const handler of connectHandlers) {
+        handler()
+      }
+      wasConnected = true
     }
 
     ws.onmessage = (event) => {
@@ -69,8 +79,15 @@ function createWsClient(): WsClient {
     }
 
     ws.onclose = () => {
+      const wasUp = connected
       connected = false
       ws = null
+      // Only fire disconnect handlers if we had been connected before
+      if (wasUp || wasConnected) {
+        for (const handler of disconnectHandlers) {
+          handler()
+        }
+      }
       scheduleReconnect()
     }
 
@@ -103,6 +120,20 @@ function createWsClient(): WsClient {
     }
   }
 
+  function onConnect(handler: ConnectionHandler): () => void {
+    connectHandlers.add(handler)
+    return () => {
+      connectHandlers.delete(handler)
+    }
+  }
+
+  function onDisconnect(handler: ConnectionHandler): () => void {
+    disconnectHandlers.add(handler)
+    return () => {
+      disconnectHandlers.delete(handler)
+    }
+  }
+
   function isConnected(): boolean {
     return connected
   }
@@ -119,10 +150,12 @@ function createWsClient(): WsClient {
     }
     connected = false
     handlers.clear()
+    connectHandlers.clear()
+    disconnectHandlers.clear()
   }
 
   // Start connection
   connect()
 
-  return { sendMessage, onMessage, isConnected, disconnect }
+  return { sendMessage, onMessage, onConnect, onDisconnect, isConnected, disconnect }
 }

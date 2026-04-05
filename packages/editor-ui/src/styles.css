@@ -14,6 +14,7 @@
   --accent-hover: #5aa0e9;
   --success: #4ade80;
   --warning: #facc15;
+  --error: #ef4444;
   --editing-color: #22c55e;
 }
 
@@ -187,10 +188,33 @@ html, body, #root {
   height: 6px;
   border-radius: 50%;
   background: var(--success);
+  transition: background-color 200ms ease-out;
 }
 
 .status-bar .status-dot.loading {
   background: var(--warning);
+}
+
+.status-bar .status-dot.unsaved {
+  background: #fb923c;
+}
+
+.status-bar .status-dot.saving {
+  background: var(--accent);
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+
+.status-bar .status-dot.saved {
+  background: var(--success);
+}
+
+.status-bar .status-dot.error {
+  background: var(--error);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
 .selection-info {
@@ -633,4 +657,87 @@ html, body, #root {
 .style-text-align-btn.active {
   background: rgba(74, 144, 217, 0.25);
   color: var(--accent);
+}
+
+/* ============================================
+   Toast notifications
+   ============================================ */
+
+.toast-container {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+  max-width: 340px;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  pointer-events: auto;
+  animation: toast-in 200ms ease-out;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.toast--error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+.toast--warning {
+  background: rgba(250, 204, 21, 0.12);
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  color: #fde68a;
+}
+
+.toast--success {
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  color: #86efac;
+}
+
+.toast-message {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-dismiss {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity 120ms ease-out;
+}
+
+.toast-dismiss:hover {
+  opacity: 1;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

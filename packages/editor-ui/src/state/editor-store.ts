@@ -13,6 +13,14 @@ export type EditorState =
   | 'RECONCILING'
   | 'NAVIGATING'
 
+export type SaveState = 'ready' | 'unsaved' | 'saving' | 'saved' | 'error'
+
+export interface ToastItem {
+  readonly id: string
+  readonly message: string
+  readonly type: 'error' | 'warning' | 'success'
+}
+
 export interface SerializedRect {
   readonly x: number
   readonly y: number
@@ -55,6 +63,12 @@ interface EditorStore {
   dragElement: HTMLElement | null
   dragGhost: SerializedRect | null
 
+  // Toast notifications
+  toasts: ToastItem[]
+
+  // Save indicator
+  saveState: SaveState
+
   // Actions
   setEditorState: (state: EditorState) => void
   selectElement: (loc: string, rect: SerializedRect, element: Element) => void
@@ -71,6 +85,9 @@ interface EditorStore {
   stopInlineEdit: (save: boolean) => void
   startDrag: (element: HTMLElement) => void
   stopDrag: () => void
+  addToast: (message: string, type: ToastItem['type']) => void
+  dismissToast: (id: string) => void
+  setSaveState: (state: SaveState) => void
 }
 
 /** Read key computed style properties from an element */
@@ -127,6 +144,8 @@ export const useEditorStore = create<EditorStore>()(
       originalContent: null,
       dragElement: null,
       dragGhost: null,
+      toasts: [] as ToastItem[],
+      saveState: 'ready' as SaveState,
 
       setEditorState: (state: EditorState) =>
         set((draft) => {
@@ -249,6 +268,26 @@ export const useEditorStore = create<EditorStore>()(
           draft.editorState = 'IDLE' as EditorState
           draft.dragElement = null
           draft.dragGhost = null
+        }),
+
+      addToast: (message: string, type: ToastItem['type']) =>
+        set((draft) => {
+          const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+          ;(draft.toasts as ToastItem[]).push({ id, message, type })
+        }),
+
+      dismissToast: (id: string) =>
+        set((draft) => {
+          const toasts = draft.toasts as ToastItem[]
+          const idx = toasts.findIndex((t) => t.id === id)
+          if (idx !== -1) {
+            toasts.splice(idx, 1)
+          }
+        }),
+
+      setSaveState: (state: SaveState) =>
+        set((draft) => {
+          draft.saveState = state as SaveState
         }),
     })),
     {

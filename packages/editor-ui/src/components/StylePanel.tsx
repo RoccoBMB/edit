@@ -118,8 +118,10 @@ function useStyleDispatch() {
   const selectedElement = useEditorStore((s) => s.selectedElement)
   const selectedLoc = useEditorStore((s) => s.selectedLoc)
   const applyStyleOverride = useEditorStore((s) => s.applyStyleOverride)
+  const setSaveState = useEditorStore((s) => s.setSaveState)
 
   const debouncedSend = useDebouncedCallback((loc: string, fingerprint: string, property: string, value: string) => {
+    setSaveState('saving')
     const ws = getWsClient()
     ws.sendMessage({
       type: 'edit:style',
@@ -140,11 +142,14 @@ function useStyleDispatch() {
       // 2. Update store (tracked by undo/redo)
       applyStyleOverride(selectedLoc, property, value)
 
-      // 3. Debounced send to server
+      // 3. Mark as unsaved immediately
+      setSaveState('unsaved')
+
+      // 4. Debounced send to server
       const fingerprint = el.getAttribute('data-edit-fp') ?? ''
       debouncedSend(selectedLoc, fingerprint, property, value)
     },
-    [selectedElement, selectedLoc, applyStyleOverride, debouncedSend],
+    [selectedElement, selectedLoc, applyStyleOverride, debouncedSend, setSaveState],
   )
 
   return dispatch
