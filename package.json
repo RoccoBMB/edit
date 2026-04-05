@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm --filter @edit/cli dev",
+    "typecheck": "tsc --build",
+    "lint": "eslint .",
+    "clean": "pnpm -r clean"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

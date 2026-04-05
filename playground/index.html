@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sample Project</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; color: #333; }
+    .hero {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 80px 40px;
+      text-align: center;
+    }
+    .hero h1 { font-size: 48px; margin-bottom: 16px; }
+    .hero p { font-size: 20px; opacity: 0.9; max-width: 600px; margin: 0 auto; }
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      padding: 60px 40px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .feature {
+      text-align: center;
+      padding: 24px;
+    }
+    .feature h3 { font-size: 20px; margin-bottom: 8px; }
+    .feature p { color: #666; line-height: 1.5; }
+    .cta {
+      text-align: center;
+      padding: 60px 40px;
+      background: #f7f7f8;
+    }
+    .cta h2 { font-size: 32px; margin-bottom: 16px; }
+    .cta a {
+      display: inline-block;
+      background: #667eea;
+      color: white;
+      padding: 12px 32px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <section class="hero">
+    <h1>Welcome to Edit</h1>
+    <p>The open-source visual editor for any web project. Click any element to start editing.</p>
+  </section>
+
+  <section class="features">
+    <div class="feature">
+      <h3>Visual Editing</h3>
+      <p>Click any element and edit its styles visually. Changes save back to your source files.</p>
+    </div>
+    <div class="feature">
+      <h3>Any Project</h3>
+      <p>Works with plain HTML, React, Vue, Astro, or any framework that outputs HTML.</p>
+    </div>
+    <div class="feature">
+      <h3>Open Source</h3>
+      <p>MIT licensed. Community-driven development with shared features and plugins.</p>
+    </div>
+  </section>
+
+  <section class="cta">
+    <h2>Ready to try it?</h2>
+    <a href="#">Get Started</a>
+  </section>
+</body>
+</html>
