@@ -62,8 +62,8 @@ export async function createEditServer(options: ServerOptions) {
       return
     }
 
-    // Serve editor UI at the root
-    if (url.pathname === '/' || url.pathname.startsWith('/__editor__/')) {
+    // Serve editor UI at the root and its assets
+    if (url.pathname === '/' || url.pathname.startsWith('/__editor__/') || url.pathname.startsWith('/assets/')) {
       // Auth check for editor pages
       const token = url.searchParams.get('token')
       if (url.pathname === '/' && token !== authToken) {
@@ -169,9 +169,15 @@ function serveEditorUI(
   }
 
   // Serve static files from editor-ui/dist
-  let filePath = url.pathname === '/'
-    ? path.join(editorDistPath, 'index.html')
-    : path.join(editorDistPath, url.pathname.replace('/__editor__/', ''))
+  let filePath: string
+  if (url.pathname === '/') {
+    filePath = path.join(editorDistPath, 'index.html')
+  } else if (url.pathname.startsWith('/__editor__/')) {
+    filePath = path.join(editorDistPath, url.pathname.replace('/__editor__/', ''))
+  } else {
+    // /assets/... and other paths served directly from editor dist
+    filePath = path.join(editorDistPath, url.pathname)
+  }
 
   // Security: ensure we stay within editor dist
   const resolved = path.resolve(filePath)
@@ -189,16 +195,20 @@ function serveEditorUI(
   const ext = path.extname(filePath)
   const contentType = MIME_TYPES[ext] ?? 'application/octet-stream'
 
-  let content = fs.readFileSync(filePath, 'utf-8')
-
-  // Inject auth token into the editor HTML
   if (ext === '.html') {
+    let content = fs.readFileSync(filePath, 'utf-8')
+    // Inject auth token into the editor HTML
     content = content.replace(
       '</head>',
       `<script>window.__EDIT_TOKEN__="${authToken}";</script></head>`,
     )
+    res.writeHead(200, { 'Content-Type': contentType })
+    res.end(content)
+    return
   }
 
+  // Non-HTML: serve as binary
+  const content = fs.readFileSync(filePath)
   res.writeHead(200, { 'Content-Type': contentType })
   res.end(content)
 }
