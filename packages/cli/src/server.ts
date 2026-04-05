@@ -5,6 +5,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { editVitePlugin } from './vite-plugin.js'
 import { createWsHandler } from './ws-handler.js'
+import { createWriteQueue } from './write-queue.js'
 
 interface ServerOptions {
   projectRoot: string
@@ -24,6 +25,9 @@ export async function createEditServer(options: ServerOptions) {
   // Generate auth token
   const authToken = crypto.randomBytes(24).toString('hex')
 
+  // Create the serialized write queue
+  const writeQueue = createWriteQueue()
+
   // Resolve editor-ui dist path (bundled into the CLI package)
   const editorDistPath = resolveEditorDist()
 
@@ -39,7 +43,7 @@ export async function createEditServer(options: ServerOptions) {
     },
     appType: 'custom',
     plugins: [
-      editVitePlugin({ projectRoot }),
+      editVitePlugin({ projectRoot, ownWrites: writeQueue.ownWrites }),
     ],
     // Don't clear the screen — we have our own CLI output
     clearScreen: false,
@@ -106,6 +110,7 @@ export async function createEditServer(options: ServerOptions) {
     server: httpServer,
     projectRoot,
     authToken,
+    writeQueue,
   })
 
   // Start listening

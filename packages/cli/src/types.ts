@@ -31,8 +31,8 @@ export type EditOperation =
 // --- WebSocket messages ---
 
 export type EditorToServer =
-  | { type: 'edit:style'; payload: { loc: string; property: string; value: string } }
-  | { type: 'edit:content'; payload: { loc: string; html: string } }
+  | { type: 'edit:style'; payload: { loc: string; fingerprint: string; property: string; value: string } }
+  | { type: 'edit:content'; payload: { loc: string; fingerprint: string; html: string } }
   | { type: 'edit:move'; payload: { sourceLoc: string; targetLoc: string; position: 'before' | 'after' | 'inside' } }
   | { type: 'file:get-tree' }
 

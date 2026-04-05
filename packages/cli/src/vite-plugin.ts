@@ -1,5 +1,5 @@
 import { parse, serialize } from 'parse5'
-import type { Plugin, ViteDevServer } from 'vite'
+import type { Plugin } from 'vite'
 import type { DefaultTreeAdapterMap } from 'parse5'
 import { toRelativePath } from './file-jail.js'
 
@@ -8,6 +8,8 @@ type Element = DefaultTreeAdapterMap['element']
 
 interface EditPluginOptions {
   projectRoot: string
+  /** Set of file paths written by the write queue. Suppress HMR for these. */
+  ownWrites?: Set<string>
 }
 
 /**
@@ -15,15 +17,9 @@ interface EditPluginOptions {
  * 1. Injects data-edit-loc attributes on every element (transformIndexHtml)
  * 2. Intercepts HTML hot updates to prevent full page reload (hotUpdate)
  */
-export function editVitePlugin({ projectRoot }: EditPluginOptions): Plugin {
-  let server: ViteDevServer | undefined
-
+export function editVitePlugin({ projectRoot, ownWrites }: EditPluginOptions): Plugin {
   return {
     name: 'edit-source-locations',
-
-    configureServer(srv) {
-      server = srv
-    },
 
     transformIndexHtml: {
       order: 'pre',
@@ -34,6 +30,13 @@ export function editVitePlugin({ projectRoot }: EditPluginOptions): Plugin {
     },
 
     hotUpdate({ file, server: srv }) {
+      // Own-write suppression: if this file was written by our write queue,
+      // remove it from the set and suppress HMR entirely.
+      if (ownWrites?.has(file)) {
+        ownWrites.delete(file)
+        return []
+      }
+
       // Intercept HTML file changes to prevent full page reload
       if (file.endsWith('.html')) {
         // Send custom event instead of full reload

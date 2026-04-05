@@ -1,2 +1,5 @@
 export { createEditServer } from './server.js'
+export { applyStyleChange, applyContentChange } from './source-writer.js'
+export { createWriteQueue } from './write-queue.js'
+export type { WriteQueue } from './write-queue.js'
 export type { EditOperation, EditorToServer, ServerToEditor, SourceLocation } from './types.js'

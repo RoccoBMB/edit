@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
+import { temporal } from 'zundo'
 
 export type EditorState =
   | 'LOADING'
@@ -34,6 +35,9 @@ interface EditorStore {
   // Computed styles for selected element
   computedStyles: Map<string, string> | null
 
+  // Style overrides: loc -> (property -> value) — tracks all style edits
+  styleOverrides: Map<string, Map<string, string>>
+
   // Iframe reference (shared across overlay, layers, style panel)
   iframeElement: HTMLIFrameElement | null
 
@@ -50,6 +54,7 @@ interface EditorStore {
   incrementFileVersion: () => void
   updateComputedStyles: (styles: Map<string, string>) => void
   setIframeElement: (iframe: HTMLIFrameElement | null) => void
+  applyStyleOverride: (loc: string, property: string, value: string) => void
 }
 
 /** Read key computed style properties from an element */
@@ -86,70 +91,110 @@ function readComputedStyles(element: Element): Map<string, string> {
 }
 
 export const useEditorStore = create<EditorStore>()(
-  immer((set) => ({
-    editorState: 'LOADING',
-    selectedLoc: null,
-    selectedRect: null,
-    selectedElement: null,
-    selectionGeneration: 0,
-    hoveredLoc: null,
-    hoveredRect: null,
-    computedStyles: null,
-    iframeElement: null,
-    activePage: 'index.html',
-    fileVersion: 0,
+  temporal(
+    immer((set) => ({
+      editorState: 'LOADING' as EditorState,
+      selectedLoc: null,
+      selectedRect: null,
+      selectedElement: null,
+      selectionGeneration: 0,
+      hoveredLoc: null,
+      hoveredRect: null,
+      computedStyles: null,
+      styleOverrides: new Map<string, Map<string, string>>(),
+      iframeElement: null,
+      activePage: 'index.html',
+      fileVersion: 0,
 
-    setEditorState: (state) =>
-      set((draft) => {
-        draft.editorState = state
-      }),
+      setEditorState: (state: EditorState) =>
+        set((draft) => {
+          draft.editorState = state
+        }),
 
-    selectElement: (loc, rect, element) =>
-      set((draft) => {
-        draft.selectedLoc = loc
-        draft.selectedRect = rect
-        draft.selectedElement = element as never
-        draft.selectionGeneration++
-        draft.editorState = 'IDLE'
-        draft.computedStyles = readComputedStyles(element) as never
-      }),
+      selectElement: (loc: string, rect: SerializedRect, element: Element) =>
+        set((draft) => {
+          draft.selectedLoc = loc
+          draft.selectedRect = rect
+          draft.selectedElement = element as never
+          draft.selectionGeneration++
+          draft.editorState = 'IDLE' as EditorState
+          draft.computedStyles = readComputedStyles(element) as never
+        }),
 
-    hoverElement: (loc) =>
-      set((draft) => {
-        draft.hoveredLoc = loc
-      }),
+      hoverElement: (loc: string | null) =>
+        set((draft) => {
+          draft.hoveredLoc = loc
+        }),
 
-    clearSelection: () =>
-      set((draft) => {
-        draft.selectedLoc = null
-        draft.selectedRect = null
-        draft.selectedElement = null
-        draft.computedStyles = null
-      }),
+      clearSelection: () =>
+        set((draft) => {
+          draft.selectedLoc = null
+          draft.selectedRect = null
+          draft.selectedElement = null
+          draft.computedStyles = null
+        }),
 
-    setActivePage: (page) =>
-      set((draft) => {
-        draft.activePage = page
-        draft.editorState = 'NAVIGATING'
-        draft.selectedLoc = null
-        draft.selectedRect = null
-        draft.selectedElement = null
-        draft.computedStyles = null
-      }),
+      setActivePage: (page: string) =>
+        set((draft) => {
+          draft.activePage = page
+          draft.editorState = 'NAVIGATING' as EditorState
+          draft.selectedLoc = null
+          draft.selectedRect = null
+          draft.selectedElement = null
+          draft.computedStyles = null
+        }),
 
-    incrementFileVersion: () =>
-      set((draft) => {
-        draft.fileVersion++
-      }),
+      incrementFileVersion: () =>
+        set((draft) => {
+          draft.fileVersion++
+        }),
 
-    updateComputedStyles: (styles) =>
-      set((draft) => {
-        draft.computedStyles = styles as never
-      }),
+      updateComputedStyles: (styles: Map<string, string>) =>
+        set((draft) => {
+          draft.computedStyles = styles as never
+        }),
 
-    setIframeElement: (iframe) =>
-      set((draft) => {
-        draft.iframeElement = iframe as never
+      setIframeElement: (iframe: HTMLIFrameElement | null) =>
+        set((draft) => {
+          draft.iframeElement = iframe as never
+        }),
+
+      applyStyleOverride: (loc: string, property: string, value: string) =>
+        set((draft) => {
+          const overrides = draft.styleOverrides as Map<string, Map<string, string>>
+          let locOverrides = overrides.get(loc)
+          if (!locOverrides) {
+            locOverrides = new Map<string, string>()
+            overrides.set(loc, locOverrides)
+          }
+          locOverrides.set(property, value)
+
+          // Also update computedStyles for immediate reflection
+          const cs = draft.computedStyles as Map<string, string> | null
+          if (cs) {
+            cs.set(property, value)
+          }
+        }),
+    })),
+    {
+      // Zundo options
+      limit: 100,
+      // Only track undo-able state; exclude transient UI state
+      partialize: (state) => ({
+        selectedLoc: state.selectedLoc,
+        computedStyles: state.computedStyles,
+        styleOverrides: state.styleOverrides,
       }),
-  })),
+      // 300ms undo grouping — rapid changes batch into one undo entry
+      handleSet: (handleSet) => {
+        let debounceTimer: ReturnType<typeof setTimeout> | undefined
+        return (state) => {
+          clearTimeout(debounceTimer)
+          debounceTimer = setTimeout(() => {
+            handleSet(state)
+          }, 300)
+        }
+      },
+    },
+  ),
 )

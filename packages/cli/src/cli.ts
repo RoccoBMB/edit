@@ -1,6 +1,5 @@
 import cac from 'cac'
 import pc from 'picocolors'
-import { createReadStream } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -32,7 +31,7 @@ cli
     }
 
     try {
-      const { url, authToken } = await createEditServer({
+      const { url } = await createEditServer({
         projectRoot,
         port: options.port,
         host: options.host ?? '127.0.0.1',
