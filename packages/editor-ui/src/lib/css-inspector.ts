@@ -95,7 +95,7 @@ function getStylesheetSource(sheet: CSSStyleSheet): string {
       return sheet.href
     }
   }
-  if (sheet.ownerNode instanceof HTMLStyleElement) {
+  if (sheet.ownerNode && 'tagName' in sheet.ownerNode && (sheet.ownerNode as Element).tagName === 'STYLE') {
     return '<style>'
   }
   return 'unknown'
@@ -169,21 +169,25 @@ export function getAppliedRules(element: Element): CSSRuleInfo[] {
         const rule = cssRules[ri]
         if (!rule) continue
 
-        if (rule instanceof CSSStyleRule) {
-          collectStyleRule(rule, element, sourceName, sheet, ri, null, rules)
-        } else if (rule instanceof CSSMediaRule) {
+        // Use rule.type instead of instanceof — instanceof fails across iframe boundaries
+        // because each window has its own constructor objects
+        if (rule.type === CSSRule.STYLE_RULE) {
+          collectStyleRule(rule as CSSStyleRule, element, sourceName, sheet, ri, null, rules)
+        } else if (rule.type === CSSRule.MEDIA_RULE) {
+          const mediaRule = rule as CSSMediaRule
           const win = doc.defaultView
-          if (win && win.matchMedia(rule.conditionText).matches) {
-            for (let mi = 0; mi < rule.cssRules.length; mi++) {
-              const mediaChild = rule.cssRules[mi]
-              if (mediaChild instanceof CSSStyleRule) {
+          const mediaText = mediaRule.media.mediaText
+          if (win && mediaText && win.matchMedia(mediaText).matches) {
+            for (let mi = 0; mi < mediaRule.cssRules.length; mi++) {
+              const mediaChild = mediaRule.cssRules[mi]
+              if (mediaChild && mediaChild.type === CSSRule.STYLE_RULE) {
                 collectStyleRule(
-                  mediaChild,
+                  mediaChild as CSSStyleRule,
                   element,
                   sourceName,
                   sheet,
                   ri,
-                  `@media ${rule.conditionText}`,
+                  `@media ${mediaText}`,
                   rules,
                 )
               }
@@ -294,9 +298,10 @@ export function getElementClasses(element: Element): ClassInfo[] {
         }
         for (let ri = 0; ri < cssRules.length; ri++) {
           const rule = cssRules[ri]
-          if (rule instanceof CSSStyleRule) {
-            if (rule.selectorText.includes(`.${cls}`)) {
-              propCount += rule.style.length
+          if (rule && rule.type === CSSRule.STYLE_RULE) {
+            const styleRule = rule as CSSStyleRule
+            if (styleRule.selectorText.includes(`.${cls}`)) {
+              propCount += styleRule.style.length
             }
           }
         }
@@ -338,9 +343,10 @@ export function getCSSVariables(element: Element): CSSVariableInfo[] {
 
       for (let ri = 0; ri < cssRules.length; ri++) {
         const rule = cssRules[ri]
-        if (!(rule instanceof CSSStyleRule)) continue
+        if (!rule || rule.type !== CSSRule.STYLE_RULE) continue
 
-        const style = rule.style
+        const styleRule = rule as CSSStyleRule
+        const style = styleRule.style
         for (let di = 0; di < style.length; di++) {
           const prop = style[di]
           if (!prop || !prop.startsWith('--')) continue
@@ -354,7 +360,7 @@ export function getCSSVariables(element: Element): CSSVariableInfo[] {
             name: prop,
             value: rawValue,
             resolvedValue: resolved,
-            source: rule.selectorText,
+            source: styleRule.selectorText,
             isColor: isColorValue(resolved),
           })
         }
