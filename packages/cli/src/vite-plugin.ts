@@ -126,7 +126,9 @@ function buildFingerprint(el: Element): string {
     }
   }
 
-  return parts.join('>')
+  // Use / instead of > as separator to avoid breaking Vite's HTML regex
+  // which matches <head[^>]*> and would split on > inside attribute values
+  return parts.join('/')
 }
 
 function isElement(node: Node): node is Element {
