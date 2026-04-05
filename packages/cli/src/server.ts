@@ -109,6 +109,18 @@ export async function createEditServer(options: ServerOptions) {
       return
     }
 
+    // Serve static assets from the project directory
+    // This handles absolute paths like /assets/images/photo.jpg referenced in HTML
+    const staticPath = path.join(projectRoot, url.pathname)
+    if (fs.existsSync(staticPath) && fs.statSync(staticPath).isFile()) {
+      const ext = path.extname(staticPath)
+      const contentType = MIME_TYPES[ext] ?? 'application/octet-stream'
+      const fileContent = fs.readFileSync(staticPath)
+      res.writeHead(200, { 'Content-Type': contentType })
+      res.end(fileContent)
+      return
+    }
+
     // Let Vite handle everything else (HMR, assets, etc.)
     vite.middlewares(req, res)
   })
@@ -244,11 +256,24 @@ function findHtmlFiles(dir: string, base = ''): string[] {
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html',
   '.js': 'application/javascript',
+  '.mjs': 'application/javascript',
   '.css': 'text/css',
   '.json': 'application/json',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
   '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.pdf': 'application/pdf',
 }
 
 /**
