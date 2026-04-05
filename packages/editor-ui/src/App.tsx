@@ -62,11 +62,33 @@ export function App() {
     [addToast, scheduleToastDismiss],
   )
 
+  // Fetch file list via HTTP on mount (faster than WS, sets initial page)
+  useEffect(() => {
+    fetch('/__project__/_files')
+      .then((r) => r.json())
+      .then((data: { files: string[] }) => {
+        if (data.files.length > 0) {
+          setPages(data.files)
+          // Pick initial page: prefer index.html, otherwise first file
+          const store = useEditorStore.getState()
+          if (!store.activePage || !data.files.includes(store.activePage)) {
+            const indexFile = data.files.find((f) => f.endsWith('index.html'))
+            const firstPage = indexFile ?? data.files[0]
+            if (firstPage) {
+              store.setActivePage(firstPage)
+              store.setEditorState('LOADING')
+            }
+          }
+        }
+      })
+      .catch(() => { /* server not ready yet, WS will handle it */ })
+  }, [setPages])
+
   // Initialize WS connection and listen for server messages
   useEffect(() => {
     const ws = getWsClient()
 
-    // Request file tree on connect
+    // Request file tree on connect (backup for the HTTP fetch)
     ws.sendMessage({ type: 'file:get-tree' })
 
     const unsubMessage = ws.onMessage((msg) => {
@@ -92,6 +114,16 @@ export function App() {
         case 'file:tree': {
           const payload = msg.payload as { files: string[] }
           setPages(payload.files)
+          // If activePage is still the default and doesn't exist, pick a real one
+          const store = useEditorStore.getState()
+          if (payload.files.length > 0 && !payload.files.includes(store.activePage)) {
+            const indexFile = payload.files.find((f) => f.endsWith('index.html'))
+            const firstPage = indexFile ?? payload.files[0]
+            if (firstPage) {
+              store.setActivePage(firstPage)
+              store.setEditorState('LOADING')
+            }
+          }
           break
         }
       }

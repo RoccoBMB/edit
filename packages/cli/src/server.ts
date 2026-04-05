@@ -76,6 +76,14 @@ export async function createEditServer(options: ServerOptions) {
       return
     }
 
+    // API: list HTML files in the project
+    if (url.pathname === '/__project__/_files') {
+      const htmlFiles = findHtmlFiles(projectRoot)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ files: htmlFiles }))
+      return
+    }
+
     // Serve user's project files under /__project__/
     if (url.pathname.startsWith('/__project__/')) {
       const projectPath = url.pathname.replace('/__project__', '')
@@ -211,6 +219,26 @@ function serveEditorUI(
   const content = fs.readFileSync(filePath)
   res.writeHead(200, { 'Content-Type': contentType })
   res.end(content)
+}
+
+/** Synchronously find all .html files in a directory (recursive, skips node_modules/dist/.dirs) */
+function findHtmlFiles(dir: string, base = ''): string[] {
+  const results: string[] = []
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+    for (const entry of entries) {
+      if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'dist') continue
+      const rel = base ? `${base}/${entry.name}` : entry.name
+      if (entry.isDirectory()) {
+        results.push(...findHtmlFiles(path.join(dir, entry.name), rel))
+      } else if (entry.name.endsWith('.html')) {
+        results.push(rel)
+      }
+    }
+  } catch {
+    // ignore unreadable dirs
+  }
+  return results
 }
 
 const MIME_TYPES: Record<string, string> = {
