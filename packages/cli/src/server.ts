@@ -222,7 +222,7 @@ function getInlineEditorHtml(_authToken: string): string {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Edit</title>
+  <title>onpage</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { display: grid; grid-template-columns: 240px 1fr; grid-template-rows: 1fr 44px; height: 100vh; font-family: -apple-system, sans-serif; background: #1e1e2e; color: #e0e0e8; }

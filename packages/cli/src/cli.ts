@@ -32,7 +32,7 @@ async function hasHtmlFiles(dir: string, depth = 0): Promise<boolean> {
   return false
 }
 
-const cli = cac('edit')
+const cli = cac('onpage')
 
 cli
   .command('[root]', 'Start the visual editor')
@@ -44,7 +44,7 @@ cli
     const projectRoot = root ?? process.cwd()
 
     console.log()
-    console.log(`  ${pc.cyan('edit')} ${pc.dim(`v${version}`)}`)
+    console.log(`  ${pc.cyan('onpage')} ${pc.dim(`v${version}`)}`)
     console.log()
 
     if (options.host && options.host !== '127.0.0.1' && options.host !== 'localhost') {

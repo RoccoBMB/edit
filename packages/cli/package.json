@@ -1,10 +1,10 @@
 {
-  "name": "@edit/cli",
+  "name": "onpage",
   "version": "0.1.0",
   "description": "Open-source visual editor for any web project",
   "type": "module",
   "bin": {
-    "edit": "./dist/cli.js"
+    "onpage": "./dist/cli.js"
   },
   "files": [
     "dist",

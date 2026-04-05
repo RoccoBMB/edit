@@ -1,11 +1,11 @@
-# Edit
+# onpage
 
 > Open-source visual editor for any web project. Edit HTML & CSS visually, save to source files.
 
 ## Quick Start
 
 ```bash
-npx @edit/cli
+npx onpage
 ```
 
 Run in any directory with HTML files. That's it.
@@ -21,7 +21,7 @@ Run in any directory with HTML files. That's it.
 
 ## How It Works
 
-Edit runs a local dev server that renders your project in an iframe. A Vite plugin injects source location markers on every element. When you click an element, Edit knows exactly which file, line, and column it came from. Changes are written back using surgical byte-offset string replacement -- your formatting is never touched.
+onpage runs a local dev server that renders your project in an iframe. A Vite plugin injects source location markers on every element. When you click an element, onpage knows exactly which file, line, and column it came from. Changes are written back using surgical byte-offset string replacement -- your formatting is never touched.
 
 ## Features
 
@@ -47,7 +47,7 @@ Edit runs a local dev server that renders your project in an iframe. A Vite plug
 ## Development
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/RoccoBMB/edit.git
 cd edit
 pnpm install
 pnpm dev
