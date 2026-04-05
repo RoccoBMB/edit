@@ -21,10 +21,21 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && pnpm run bundle-editor",
+    "bundle-editor": "rm -rf dist/editor && cp -r ../editor-ui/dist dist/editor",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepublishOnly": "pnpm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RoccoBMB/edit",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/RoccoBMB/edit#readme",
+  "bugs": {
+    "url": "https://github.com/RoccoBMB/edit/issues"
   },
   "keywords": [
     "visual-editor",
